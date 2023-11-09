@@ -1,6 +1,16 @@
+import re
+import sv_ttk
 import tkinter as tk
 from tkinter import ttk, filedialog
 from preset import *
+
+class MyButton(ttk.Frame):
+    def __init__(self, parent, height=None, width=None, text="", command=None, style='TButton'):
+        ttk.Frame.__init__(self, parent, height=height, width=width, style=style)
+
+        self.pack_propagate(False)
+        self._btn = ttk.Button(self, text=text, command=command, style=style)
+        self._btn.pack(fill=tk.BOTH, expand=1)
 
 class App(ttk.Frame):
     def __init__(self, parent):
@@ -10,14 +20,17 @@ class App(ttk.Frame):
         self.parent = parent
         self.parent.title("Timetable")
 
-        # set window col=7, row=10
-        for i in range(7):
-            self.parent.columnconfigure(i, weight=1)
-        for i in range(11):
-            self.parent.rowconfigure(i, weight=1)
+        self.period_width = 35
+        self.default_width = 100
+        self.week_height = 40
+        self.default_height = 60
+
+        self.parent.geometry("200x150")
 
         self.students = None
         self.student = None
+
+        self.tabs = []
 
         self.load_screen()
 
@@ -26,17 +39,21 @@ class App(ttk.Frame):
             f = filedialog.askopenfilename(filetypes=[("timetable xlsx file", '*.xlsx')])
             if f:
                 self.students = StudentList.from_xlsx(f)
-                is_loaded.config(text='loaded')
+                # button.configure(style='Accent.TButton', state='disabled')
+                button.destroy()
 
-        button = ttk.Button(self, text='load timetable', command=load_students)
-        button.pack()
+                global name_var, name_entry
+                name_var = tk.StringVar()
+                name_entry = ttk.Entry(self, textvariable=name_var)
+                name_entry.bind('<Return>', lambda _: go_to_timetable())
+                name_entry.place(x=100, y=100, anchor='center')
 
-        is_loaded = ttk.Label(self, text='not loaded')
-        is_loaded.pack()
 
-        name_var = tk.StringVar()
-        name_entry = ttk.Entry(self, textvariable=name_var)
-        name_entry.pack()
+        logo = ttk.Label(self, text='Timetable', font=("Archivo Bold", 20))
+        logo.place(x=100, y=50, anchor='center')
+
+        button = ttk.Button(self, text='Load', command=load_students)
+        button.place(x=100, y=100, anchor='center')
 
         def go_to_timetable():
             name = name_var.get().strip()
@@ -48,42 +65,65 @@ class App(ttk.Frame):
             student = self.students[name]
             if self.students is not None and student is not None:
                 self.student = student
-                self.timetable_screen(self.student)
+
+                new = tk.Toplevel(self.parent)
+                new.title(f"Timetable - {self.student}")
+                new.geometry(f"{self.period_width + len(Week)*self.default_width}x{self.week_height + 8*self.default_height}")
+                new.resizable(False, False)
+
+                self.timetable_screen(new, self.student)
+                self.tabs.append(new)
             else:
                 print('denied')
 
-        go_to_button = ttk.Button(self, text='go to', command=go_to_timetable)
-        go_to_button.pack()
+    def timetable_screen(self, new: tk.Toplevel, student: Student):
+        for i in range(1, 9):
+            period_block = MyButton(new, text=f'{i}', width=self.period_width, height=self.default_height)
+            period_block.place(x=0, y=self.week_height + (i-1)*self.default_height)
 
-    def timetable_screen(self, student: Student):
-        # clear all widgets
-        for widget in self.winfo_children():
-            widget.destroy()
+        for week in Week:
+            week_block = MyButton(new, text=week.name, width=self.default_width, height=self.week_height, style='Accent.TButton')
+            week_block.place(x=self.period_width + week.value*self.default_width, y=0)
 
-        days = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun']
-        for i, day in enumerate(days):
-            label = ttk.Button(self, text=day, width=10, style="Accent.TButton")
-            label.grid(row=0, column=i)
+            E = []
+            for _, period in student.timetable[week]:
+                subject = student.timetable[week][period].value()
 
-        for (week, period), subject in student.timetable.items():
-            # Button width 20, 너무 길면 아래로 늘어나기
-            # label = ttk.Button(self, text=subject, width=10)
-            # label.grid(row=week.value, column=period)
-            label = ttk.Button(self, text=subject, width=10)
-            label.grid(row=week.value+1, column=period)
+                subject_name = subject.name.replace(' ', '')
+                label_txt = '\n'.join(subject_name[i:i + 5].strip() for i in range(0, len(subject_name), 5))
 
+                E.append((period, label_txt))
+
+            ret = []
+            b4 = E[0]
+            cnt = 0
+            for i, (period, subject) in enumerate(E):
+                if subject == b4[1]:
+                    cnt += 1
+                else:
+                    ret.append((b4[0], cnt, b4[1]))
+                    b4 = E[i]
+                    cnt = 1
+
+                if i == len(E) - 1:
+                    ret.append((b4[0], cnt, b4[1]))
+
+            for start, cnt, label_txt in ret:
+                subject_block = MyButton(new, text=label_txt, width=self.default_width, height=self.default_height*cnt)
+                subject_block.place(x=self.period_width + week.value*self.default_width, y=self.week_height + (start-1)*self.default_height)
 
 if __name__ == "__main__":
     root = tk.Tk()
     root.title("")
 
     # Simply set the theme
-    root.tk.call("source", "../azure.tcl")
-    # root.tk.call("set_theme", "dark")
-    root.tk.call("set_theme", "dark")
+    sv_ttk.set_theme("light")
 
     app = App(root)
     app.pack(fill="both", expand=True)
+
+    style = ttk.Style()
+    style.configure('TButton', font=("Pretendard Variable", 12))
 
     # Set a minsize for the window, and place it in the middle
     root.update()

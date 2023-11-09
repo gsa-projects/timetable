@@ -1,7 +1,6 @@
 from src.preset import *
 
 students = StudentList.from_xlsx('../data/timetable.xlsx')
-rhs = students[22027]
+rhs = students[0:7]
 
-for e in rhs.timetable.items():
-    print(e)
+print(rhs)
