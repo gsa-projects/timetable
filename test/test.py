@@ -1,6 +1,7 @@
-from src.preset import *
+from src.timetable import *
 
 students = StudentList.from_xlsx('../data/timetable.xlsx')
-rhs = students[0:7]
+rhs = students['설채환']
 
-print(rhs)
+for subject in rhs.subjects:
+    print(subject.name, subject.type)

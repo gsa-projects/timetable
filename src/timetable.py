@@ -56,11 +56,56 @@ class Week(Enum):
 		else:
 			raise ValueError(f'invalid week: {text}')
 
+class SubjectType(Enum):
+	인문 = 0
+	예체능 = 1
+	교양 = 2
+	수학 = 3
+	물리학 = 4
+	화학 = 5
+	생명과학 = 6
+	지구과학 = 7
+	정보과학 = 8
+
+	@property
+	def color(self):
+		if self == SubjectType.인문:
+			return ['#F4B8C4', '#F09AAA']		# 대충 빨간색
+		elif self == SubjectType.예체능:
+			return ['#F9E4BE', '#F6D69C']		# 대충 노란색
+		elif self == SubjectType.교양:
+			return ['#D8E4F3', '#BCD1EA']		# 대충 하늘색
+		elif self == SubjectType.수학:
+			return ['#C9E8D2', '#AEDCBB']		# 대충 초록색
+		else:		# 과학
+			return ['#D0CBF1', '#BBB3EB']		# 대충 보라색
+
 @dataclass
 class Subject:
 	name: str
 	time: int
 	nth: int
+	type: SubjectType = None
+
+	def __post_init__(self):
+		if any(c in self.name for c in ['물리', '역학']):
+			self.type = SubjectType.물리학
+		elif any(c in self.name for c in ['화학']):
+			self.type = SubjectType.화학
+		elif any(c in self.name for c in ['생명', '생물', '생리학', '생태']):
+			self.type = SubjectType.생명과학
+		elif any(c in self.name for c in ['지구', '천문']):
+			self.type = SubjectType.지구과학
+		elif any(c in self.name for c in ['딥러닝', '프로그래밍', '알고리즘']):
+			self.type = SubjectType.정보과학
+		elif any(c in self.name for c in ['적분', '선형', '수학', '기하', '미분', '정수론']):
+			self.type = SubjectType.수학
+		elif any(c in self.name for c in ['음악', '미술', '체육', '건강']):
+			self.type = SubjectType.예체능
+		elif any(c in self.name for c in ['정치', '영작', '영어', '회화', '고전', '경제', '문학', '중국', '일본', '아시아', '독서', '작문']):
+			self.type = SubjectType.인문
+		else:
+			self.type = SubjectType.교양
 	
 	def __hash__(self):
 		return hash(f'{self.name}_{self.nth}')
