@@ -60,11 +60,6 @@ def split(s, chuck_size=5):
     """
     문자열 `s`를 `chunk_size` 길이로 나눕니다. 다만, 영어로 된 문자열은 `chunk_size` 길이에서 고려되지 않고 더해집니다.
     '일반물리학II' 같은 문자열이 `chunk_size`가 5라면 '일반물리학\nII'로 나누어지는 것을 방지하기 위함입니다.
-
-    >>> split('일반물리학II', 5)
-    '일반물리학II'
-    >>> split('프로그래밍과문제해결', 5)
-    '프로그래밍과\n문제해결'
     """
 
     result = ""
@@ -89,8 +84,8 @@ class App(ttk.Frame):
         self.parent_width = 300
         self.parent.geometry(f"{self.parent_width}x170")
 
-        self.period_width = 47
-        self.default_width = 127
+        self.period_width = 45
+        self.default_width = 125
 
         self.week_height = 50
         self.default_height = 70
@@ -161,7 +156,7 @@ class App(ttk.Frame):
             new.resizable(False, False)
 
             menubar = tk.Menu(new)
-            menubar.add_command(label="Screenshot", command=lambda: capture(new))
+            menubar.add_command(label="Screenshot", command=lambda:  capture(new))
             new.configure(menu=menubar)
 
             self.timetable_screen(new, student)
@@ -231,13 +226,14 @@ class App(ttk.Frame):
                 start = period, subject
 
 if __name__ == "__main__":
+    root = tk.Tk()
+
     # 테마 및 스타일 설정
     sv_ttk.set_theme("light")
     style = ttk.Style()
     style.configure('TButton', font=("Pretendard Variable", 12))
 
     # 앱 생성
-    root = tk.Tk()
     app = App(root)
     app.pack(fill="both", expand=True)
 

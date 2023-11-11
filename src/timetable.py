@@ -16,7 +16,7 @@ times = [
     time(16, 40),
     time(17, 40)
 ]
-max_period = len(times) + 1  # 최대 교시 수
+max_period = len(times)  # 최대 교시 수
 
 class Week(Enum):
     MON = 0
