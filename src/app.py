@@ -1,4 +1,6 @@
 import tkinter as tk
+from typing import Callable
+
 import pyautogui
 import sv_ttk
 from tkinter import ttk, filedialog
@@ -9,15 +11,14 @@ from timetable import *
 
 class Button(tk.Button):
     def __init__(self, master, memo, **kwargs):
-        tk.Button.__init__(self, master, **kwargs)
+        super().__init__(master, **kwargs)
 
         self.memo = memo    # 따로 인스턴스들을 저장할 딕셔너리
 
-class ClassBlock(ttk.Frame):
+class ClassBlock(tk.Frame):
     def __init__(self, parent, height=None, width=None, text="", command=None, style='TButton',
-                 bg=('#eeeeee', '#cccccc'), fg='#000000', **kwargs):
-        ttk.Frame.__init__(self, parent, height=height, width=width, style=style)
-
+                 bg=('#eeeeee', '#cccccc'), fg='#000000', border_size=2, **kwargs):
+        super().__init__(parent, height=height, width=width, background='#fafafa', borderwidth=border_size)
         self.pack_propagate(False)
         self.btn = Button(
             self,
@@ -33,7 +34,7 @@ class ClassBlock(ttk.Frame):
             activeforeground=fg,
             justify='left'      # 텍스트 왼쪽 정렬
         )
-        self.btn.pack(fill=tk.BOTH, expand=1)
+        self.btn.pack(fill=tk.BOTH, expand=1, padx=border_size, pady=border_size)
 
 def capture(root: tk.Toplevel):
     """
@@ -54,7 +55,8 @@ def capture(root: tk.Toplevel):
 
     grabbed.paste(left_mask, (0, h - left_mask.height))
     grabbed.paste(right_mask, (w - right_mask.width, h - right_mask.height))
-    grabbed.save(f'../images/{root.title()}.png')
+
+    return grabbed
 
 def split(s, chuck_size=5):
     """
@@ -155,8 +157,25 @@ class App(ttk.Frame):
                 f"{self.period_width + len(Week) * self.default_width}x{self.week_height + (max_period - 1) * self.default_height}")
             new.resizable(False, False)
 
+            def ask_save(obj, filetype: str, save_func: Callable[[..., str], None]):
+                filename = f"{student}의 시간표.{filetype}"
+
+                file = filedialog.asksaveasfilename(
+                    initialfile=filename,
+                    defaultextension=filetype,
+                    filetypes=[(f"{filetype.upper()} 파일", f'*.{filetype}')],
+                    initialdir='C:/Users/USER/Desktop',
+                    title='시간표 저장'
+                )
+
+                if file is None:
+                    return
+
+                save_func(obj, file)
+
             menubar = tk.Menu(new)
-            menubar.add_command(label="Screenshot", command=lambda:  capture(new))
+            menubar.add_command(label="Screenshot", command=lambda: ask_save(capture(new), 'png', lambda x, f: x.save(f)))
+            menubar.add_command(label="Google Calendar", command=lambda: ask_save(student.get_google_cal(), 'csv', lambda x, f: x.to_csv(f)))
             new.configure(menu=menubar)
 
             self.timetable_screen(new, student)
@@ -165,18 +184,20 @@ class App(ttk.Frame):
 
     def timetable_screen(self, new: tk.Toplevel, student: Student):
         # 요일 행과 교시 열 사이 빈틈 마스크 생성
-        block = ClassBlock(new, width=self.period_width, height=self.week_height)
-        block.place(x=0, y=0)
+        block1 = ClassBlock(new, width=self.period_width, height=self.week_height, border_size=0)
+        block1.place(x=-4, y=0)
+        block2 = ClassBlock(new, width=self.period_width, height=self.week_height, border_size=0)
+        block2.place(x=0, y=-4)
 
         # 교시 열 생성
         for i in range(1, max_period):
-            period_block = ClassBlock(new, text=f'{i}', width=self.period_width, height=self.default_height)
-            period_block.place(x=0, y=self.week_height + (i - 1) * self.default_height)
+            period_block = ClassBlock(new, text=f'{i}', width=self.period_width, height=self.default_height, border_size=0)
+            period_block.place(x=-4, y=self.week_height + (i - 1) * self.default_height)
 
         # 요일 행 생성
         for week in Week:
-            week_block = ClassBlock(new, text=week.name, width=self.default_width, height=self.week_height)
-            week_block.place(x=self.period_width + week.value * self.default_width, y=0)
+            week_block = ClassBlock(new, text=week.name, width=self.default_width, height=self.week_height, border_size=0)
+            week_block.place(x=self.period_width + week.value * self.default_width, y=-4)
 
         # 시간표 생성
         for week in Week:

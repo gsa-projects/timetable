@@ -278,8 +278,8 @@ class Timetable:
     def __len__(self):
         return len(self.items())
 
-    def items(self):
-        return {key: value for key, value in self.__content.items()}.items()
+    def items(self, remove_gap=False):
+        return {key: value for key, value in self.__content.items() if not (remove_gap and value == GAP)}.items()
 
     def __iter__(self):
         return iter({key: value for key, value in self.__content.items()})
@@ -375,7 +375,7 @@ class Timetable:
                    'Description']  # , 'Location', 'Private']
 
         data = []
-        for (week, period), subject in self.items():
+        for (week, period), subject in self.items(remove_gap=True):
             start_date = date(2023, 8, 14 + week.value)
             end_date = date(2023, 12, 31)
 
@@ -392,7 +392,7 @@ class Timetable:
                 ])
 
         df = pd.DataFrame(data, columns=columns)
-        df.to_csv(f'output/calendar/{name}.csv')
+        return df
 
 @dataclass
 class Student:
@@ -465,7 +465,7 @@ class Student:
     __str__ = __repr__
 
     def get_google_cal(self):
-        self.timetable.to_google_cal(self.name)
+        return self.timetable.to_google_cal(self.name)
 
 class StudentList:
     @staticmethod
