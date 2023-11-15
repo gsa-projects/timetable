@@ -160,18 +160,21 @@ class App(ttk.Frame):
             def ask_save(obj, filetype: str, save_func: Callable[[..., str], None]):
                 filename = f"{student}의 시간표.{filetype}"
 
-                file = filedialog.asksaveasfilename(
-                    initialfile=filename,
-                    defaultextension=filetype,
-                    filetypes=[(f"{filetype.upper()} 파일", f'*.{filetype}')],
-                    initialdir='C:/Users/USER/Desktop',
-                    title='시간표 저장'
-                )
+                try:
+                    file = filedialog.asksaveasfilename(
+                        initialfile=filename,
+                        defaultextension=filetype,
+                        filetypes=[(f"{filetype.upper()} 파일", f'*.{filetype}')],
+                        initialdir='C:/Users/USER/Desktop',
+                        title='시간표 저장'
+                    )
 
-                if file is None:
+                    if file is None:
+                        return
+
+                    save_func(obj, file)
+                except:
                     return
-
-                save_func(obj, file)
 
             menubar = tk.Menu(new)
             menubar.add_command(label="Screenshot", command=lambda: ask_save(capture(new), 'png', lambda x, f: x.save(f)))
@@ -260,6 +263,7 @@ if __name__ == "__main__":
 
     # 창 중앙에 배치
     root.update()
+    root.resizable(False, False)
     root.minsize(root.winfo_width(), root.winfo_height())
     x_coordinate = int((root.winfo_screenwidth() / 2) - (root.winfo_width() / 2))
     y_coordinate = int((root.winfo_screenheight() / 2) - (root.winfo_height() / 2))
