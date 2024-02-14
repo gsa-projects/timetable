@@ -1,9 +1,10 @@
 from src.timetable import *
 
-students = StudentList.load('../data/timetable.xlsx', '../data/subjects.xlsx')
-rhs: Student = students['류현승']
+students = StudentList.load(
+    '../data/2학년 학생별 시간표.xlsx',
+    '../data/과목별 다교사수업.xlsx')
 
-print(rhs.subjects)
+rhs = students['류현승']
+parkjj = students['박진재']
 
-# for i, (_, period) in enumerate(rhs.timetable[Week.MON]):
-#     print(i, period)
+print(rhs.subjects & parkjj.subjects)
