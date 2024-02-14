@@ -205,7 +205,7 @@ class App(ttk.Frame):
         # 시간표 생성
         for week in Week:
             items = student.timetable[week].items()
-            start: tuple[int, Subject] = None
+            start: tuple[int, Class] = None
 
             for i, ((_, period), subject) in enumerate(items):
                 if start is None:
@@ -233,7 +233,7 @@ class App(ttk.Frame):
                 # class block을 누르면 강의 정보(선생님, 강의실, 분반)를 보여줌
                 def on_class_block_press(event):
                     source: Button = event.widget
-                    got: Subject = source.memo['subject']
+                    got: Class = source.memo['subject']
 
                     source.configure(
                         text=f'{got.teacher.name}T\n{got.teacher.classroom}\n{got.nth}분반')

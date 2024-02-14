@@ -110,6 +110,11 @@ class Teacher:
 @dataclass
 class Subject:
     name: str
+    teacher: Teacher = None
+
+@dataclass
+class Class:
+    name: str
     time: int  # 시수
     nth: int
     teacher: Teacher = None
@@ -139,7 +144,7 @@ class Subject:
         return hash(f'{self.name}_{self.nth}_{self.time}_{self.teacher}_{self.type}')
 
     def __eq__(self, other):
-        return isinstance(other, Subject) and \
+        return isinstance(other, Class) and \
             self.name == other.name and \
             self.nth == other.nth and \
             self.time == other.time and \
@@ -147,71 +152,74 @@ class Subject:
             self.type == other.type
 
     def __repr__(self):
-        return f'{self.name} {self.nth}반 ({self.teacher.name}T)'
+        if self.nth == 0:
+            return f'{self.name} ({self.teacher.name}T)'
+        else:
+            return f'{self.name} {self.nth}반 ({self.teacher.name}T)'
 
-    def __deepcopy__(self):
-        return Subject(self.name, self.time, self.nth, self.teacher, self.type)
+    def __deepcopy__(self, memo={}):
+        return Class(self.name, self.time, self.nth, self.teacher, self.type)
 
     __str__ = __repr__
 
-GAP = Subject('공강', 0, 0)
+GAP = Class('공강', 0, 0)
 
-class SubjectSet:
+class ClassSet:
     def __init__(self, args=None):
         if args is None:
-            self.__content: set[Subject] = set()
+            self.__content: set[Class] = set()
         elif isinstance(args, set):
-            self.__content: set[Subject] = args
-        elif isinstance(args, SubjectSet):
-            self.__content: set[Subject] = args.__content
-        elif isinstance(args, Subject):
-            self.__content: set[Subject] = {args}
+            self.__content: set[Class] = args
+        elif isinstance(args, ClassSet):
+            self.__content: set[Class] = args.__content
+        elif isinstance(args, Class):
+            self.__content: set[Class] = {args}
         else:
             raise TypeError(f'unsupported operand type(s) for |: {type(self)} and {type(args)}')
 
     def __len__(self):
         return len(self.__content)
 
-    def add(self, *args: Subject):
+    def add(self, *args: Class):
         self.__content.add(*args)
 
     def __or__(self, value: any):
         if isinstance(value, Student):
-            return SubjectSet(self.__content | value.subjects)
-        elif isinstance(value, SubjectSet):
-            return SubjectSet(self.__content | value.__content)
-        elif isinstance(value, Subject):
-            return SubjectSet(self.__content | {value})
+            return ClassSet(self.__content | value.classes)
+        elif isinstance(value, ClassSet):
+            return ClassSet(self.__content | value.__content)
+        elif isinstance(value, Class):
+            return ClassSet(self.__content | {value})
         else:
             raise TypeError(f'unsupported operand type(s) for |: {type(self)} and {type(value)}')
 
     def __and__(self, value: any):
         if isinstance(value, Student):
-            return self & value.subjects
-        elif isinstance(value, SubjectSet):
-            return SubjectSet(self.__content & value.__content)
-        elif isinstance(value, Subject):
-            return SubjectSet(self.__content & {value})
+            return self & value.classes
+        elif isinstance(value, ClassSet):
+            return ClassSet(self.__content & value.__content)
+        elif isinstance(value, Class):
+            return ClassSet(self.__content & {value})
         else:
             raise TypeError(f'unsupported operand type(s) for &: {type(self)} and {type(value)}')
 
     def __xor__(self, value: any):
         if isinstance(value, Student):
-            return SubjectSet(self.__content ^ value.subjects)
-        elif isinstance(value, SubjectSet):
-            return SubjectSet(self.__content ^ value.__content)
-        elif isinstance(value, Subject):
-            return SubjectSet(self.__content ^ {value})
+            return ClassSet(self.__content ^ value.classes)
+        elif isinstance(value, ClassSet):
+            return ClassSet(self.__content ^ value.__content)
+        elif isinstance(value, Class):
+            return ClassSet(self.__content ^ {value})
         else:
             raise TypeError(f'unsupported operand type(s) for ^: {type(self)} and {type(value)}')
 
     def __sub__(self, value: any):
         if isinstance(value, Student):
-            return SubjectSet(self.__content - value.subjects)
-        elif isinstance(value, SubjectSet):
-            return SubjectSet(self.__content - value.__content)
-        elif isinstance(value, Subject):
-            return SubjectSet(self.__content - {value})
+            return ClassSet(self.__content - value.classes)
+        elif isinstance(value, ClassSet):
+            return ClassSet(self.__content - value.__content)
+        elif isinstance(value, Class):
+            return ClassSet(self.__content - {value})
         else:
             raise TypeError(f'unsupported operand type(s) for -: {type(self)} and {type(value)}')
 
@@ -234,7 +242,7 @@ class SubjectSet:
     def to_time(self) -> list[int]:
         return list(map(lambda x: x.time, self.__content))
 
-    def find(self, name: str, nth=None) -> Subject | None:
+    def find(self, name: str, nth=None) -> Class | None:
         for subject in self.__content:
             if subject.name.startswith(name) and (nth is None or subject.nth == nth):
                 return subject
@@ -256,7 +264,7 @@ class Timetable:
     """
 
     def __init__(self, week_range=range(0, len(Week)), period_range=range(1, max_period + 1), data=None):
-        self.__content: dict[tuple[Week, int], Subject] = {}
+        self.__content: dict[tuple[Week, int], Class] = {}
         self.week_range = week_range
         self.period_range = period_range
 
@@ -320,7 +328,7 @@ class Timetable:
             else:
                 raise TypeError(f'unsupported operand type(s) for []: {type(self)} and {type(key)}')
 
-    def __setitem__(self, key, value: Subject):
+    def __setitem__(self, key, value: Class):
         if isinstance(key, int):
             for week in map(Week, self.week_range):
                 self.__content[week, key] = value
@@ -399,7 +407,7 @@ class Student:
     id: int
     name: str
     timetable: Timetable
-    subjects: SubjectSet
+    classes: ClassSet
 
     def __hash__(self):
         return hash(self.id)
@@ -414,48 +422,48 @@ class Student:
         elif isinstance(other, Student):
             return self.id == other.id and \
                 self.name == other.name and \
-                self.subjects == other.subjects and \
+                self.classes == other.classes and \
                 self.timetable == other.timetable
         else:
             return False
 
-    def __or__(self, value: any) -> SubjectSet:
+    def __or__(self, value: any) -> ClassSet:
         if isinstance(value, Student):
-            return SubjectSet(self.subjects | value.subjects)
-        elif isinstance(value, SubjectSet):
-            return SubjectSet(self.subjects | value)
-        elif isinstance(value, Subject):
-            return SubjectSet(self.subjects | {value})
+            return ClassSet(self.classes | value.classes)
+        elif isinstance(value, ClassSet):
+            return ClassSet(self.classes | value)
+        elif isinstance(value, Class):
+            return ClassSet(self.classes | {value})
         else:
             raise TypeError(f'unsupported operand type(s) for |: {type(self)} and {type(value)}')
 
-    def __and__(self, value: any) -> SubjectSet:
+    def __and__(self, value: any) -> ClassSet:
         if isinstance(value, Student):
-            return SubjectSet(self.subjects & value.subjects)
-        elif isinstance(value, SubjectSet):
-            return SubjectSet(self.subjects & value)
-        elif isinstance(value, Subject):
-            return SubjectSet(self.subjects & {value})
+            return ClassSet(self.classes & value.classes)
+        elif isinstance(value, ClassSet):
+            return ClassSet(self.classes & value)
+        elif isinstance(value, Class):
+            return ClassSet(self.classes & {value})
         else:
             raise TypeError(f'unsupported operand type(s) for &: {type(self)} and {type(value)}')
 
-    def __xor__(self, value: any) -> SubjectSet:
+    def __xor__(self, value: any) -> ClassSet:
         if isinstance(value, Student):
-            return SubjectSet(self.subjects ^ value.subjects)
-        elif isinstance(value, SubjectSet):
-            return SubjectSet(self.subjects ^ value)
-        elif isinstance(value, Subject):
-            return SubjectSet(self.subjects ^ {value})
+            return ClassSet(self.classes ^ value.classes)
+        elif isinstance(value, ClassSet):
+            return ClassSet(self.classes ^ value)
+        elif isinstance(value, Class):
+            return ClassSet(self.classes ^ {value})
         else:
             raise TypeError(f'unsupported operand type(s) for ^: {type(self)} and {type(value)}')
 
-    def __sub__(self, value: any) -> SubjectSet:
+    def __sub__(self, value: any) -> ClassSet:
         if isinstance(value, Student):
-            return SubjectSet(self.subjects - value.subjects)
-        elif isinstance(value, SubjectSet):
-            return SubjectSet(self.subjects - value)
-        elif isinstance(value, Subject):
-            return SubjectSet(self.subjects - {value})
+            return ClassSet(self.classes - value.classes)
+        elif isinstance(value, ClassSet):
+            return ClassSet(self.classes - value)
+        elif isinstance(value, Class):
+            return ClassSet(self.classes - {value})
         else:
             raise TypeError(f'unsupported operand type(s) for -: {type(self)} and {type(value)}')
 
@@ -513,12 +521,12 @@ class StudentList:
             xlsx_data.index = range(1, len(xlsx_data) + 1)
 
             # 각 학생의 수업
-            subjects = SubjectSet()
+            subjects = ClassSet()
             for period in range(1, max_period + 1):
                 for week, subject in xlsx_data.iloc[period - 1].items():
                     if subject != '공강':
                         matched = re.match('(?P<name>[\w\d\(\) ]+) (?P<nth>\d)반 \((?P<time>\d)시간\)', subject)
-                        subject_instance = Subject(
+                        subject_instance = Class(
                             name=transform(matched.group('name')).replace('(2)', ''),
                             # '기업가정신 및 기술창업교육(2) 1반 (2시간)' 같은 (2) 가 이름에 들어가는 예외가;
                             time=int(matched.group('time')),
@@ -596,7 +604,7 @@ class StudentList:
                 id=each_student[0],
                 name=each_student[1],
                 timetable=timetable,
-                subjects=subjects
+                classes=subjects
             )
 
         return students
@@ -664,5 +672,5 @@ class StudentList:
 @dataclass
 class Ranking:
     target: Student
-    subjects: SubjectSet
+    subjects: ClassSet
     score: int
