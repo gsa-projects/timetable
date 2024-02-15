@@ -2,7 +2,7 @@ import pandas as pd
 import re
 from datetime import date, time, timedelta, datetime
 from math import *
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from enum import Enum
 
 times = [
@@ -108,16 +108,11 @@ class Teacher:
     __str__ = __repr__
 
 @dataclass
-class Subject:
-    name: str
-    teacher: Teacher = None
-
-@dataclass
 class Class:
     name: str
     time: int  # 시수
     nth: int
-    teacher: Teacher = None
+    teachers: tuple[Teacher] = field(default_factory=tuple)
     type: SubjectType = None
 
     def __post_init__(self):
@@ -140,29 +135,46 @@ class Class:
         else:
             self.type = SubjectType.교양
 
+    def subjects(self) -> list['Subject']:
+        return [Subject(self, teacher) for teacher in self.teachers]
+
     def __hash__(self):
-        return hash(f'{self.name}_{self.nth}_{self.time}_{self.teacher}_{self.type}')
+        return hash((self.name, self.nth, self.time, self.teachers, self.type))
 
     def __eq__(self, other):
         return isinstance(other, Class) and \
             self.name == other.name and \
             self.nth == other.nth and \
             self.time == other.time and \
-            self.teacher == other.teacher and \
+            self.teachers == other.teachers and \
             self.type == other.type
 
     def __repr__(self):
         if self.nth == 0:
-            return f'{self.name} ({self.teacher.name}T)'
+            return f'{self.name} ({", ".join(map(str, self.teachers))})'
         else:
-            return f'{self.name} {self.nth}반 ({self.teacher.name}T)'
+            return f'{self.name} {self.nth}반 ({", ".join(map(str, self.teachers))})'
 
     def __deepcopy__(self, memo={}):
-        return Class(self.name, self.time, self.nth, self.teacher, self.type)
+        return Class(self.name, self.time, self.nth, self.teachers, self.type)
 
     __str__ = __repr__
 
-GAP = Class('공강', 0, 0)
+@dataclass
+class Subject:
+    super: Class
+    teacher: Teacher = None
+
+    def __hash__(self):
+        return hash((self.super, self.teacher))
+
+    def __repr__(self):
+        return f'{self.super.name} {self.super.nth}반 ({self.teacher}T)'
+
+    __str__ = __repr__
+
+GAP_ = Class('공강', 0, 0)
+GAP = Subject(GAP_)
 
 class ClassSet:
     def __init__(self, args=None):
@@ -185,7 +197,7 @@ class ClassSet:
 
     def __or__(self, value: any):
         if isinstance(value, Student):
-            return ClassSet(self.__content | value.classes)
+            return ClassSet(self.__content | value.classes.__content)
         elif isinstance(value, ClassSet):
             return ClassSet(self.__content | value.__content)
         elif isinstance(value, Class):
@@ -205,7 +217,7 @@ class ClassSet:
 
     def __xor__(self, value: any):
         if isinstance(value, Student):
-            return ClassSet(self.__content ^ value.classes)
+            return ClassSet(self.__content ^ value.classes.__content)
         elif isinstance(value, ClassSet):
             return ClassSet(self.__content ^ value.__content)
         elif isinstance(value, Class):
@@ -215,7 +227,7 @@ class ClassSet:
 
     def __sub__(self, value: any):
         if isinstance(value, Student):
-            return ClassSet(self.__content - value.classes)
+            return ClassSet(self.__content - value.classes.__content)
         elif isinstance(value, ClassSet):
             return ClassSet(self.__content - value.__content)
         elif isinstance(value, Class):
@@ -264,7 +276,7 @@ class Timetable:
     """
 
     def __init__(self, week_range=range(0, len(Week)), period_range=range(1, max_period + 1), data=None):
-        self.__content: dict[tuple[Week, int], Class] = {}
+        self.__content: dict[tuple[Week, int], Subject] = {}
         self.week_range = week_range
         self.period_range = period_range
 
@@ -328,7 +340,7 @@ class Timetable:
             else:
                 raise TypeError(f'unsupported operand type(s) for []: {type(self)} and {type(key)}')
 
-    def __setitem__(self, key, value: Class):
+    def __setitem__(self, key, value: Subject):
         if isinstance(key, int):
             for week in map(Week, self.week_range):
                 self.__content[week, key] = value
@@ -363,7 +375,7 @@ class Timetable:
                 if subject == GAP:
                     ret += '  ' * 3
                 else:
-                    ret += f'{"  " * (3 - len(subject.name))}{subject.name.replace(" ", "")[:3]} '
+                    ret += f'{"  " * (3 - len(subject.super.name))}{subject.super.name.replace(" ", "")[:3]} '
             ret += '\n'
 
         return ret
@@ -389,14 +401,14 @@ class Timetable:
 
             for d in map(lambda x: start_date + timedelta(days=x), range(0, (end_date - start_date).days, 7)):
                 data.append([
-                    subject.name,
+                    subject.super.name,
                     d.strftime("%m/%d/%Y"),
                     times[period - 1].strftime("%I:%M %p"),
                     d.strftime("%m/%d/%Y"),
                     (datetime.combine(datetime.min, times[period - 1]) + timedelta(minutes=50)).time().strftime(
                         "%I:%M %p"),
                     False,
-                    f"{subject.nth}분반"
+                    f"{subject.super.nth}분반"
                 ])
 
         df = pd.DataFrame(data, columns=columns)
@@ -506,16 +518,16 @@ class StudentList:
 
         for i in range(headcount):
             # 각 학생 시간표 행 시작점과 끝점
-            startLine = (line_per_student * i)
-            endLine = line_per_student * (i + 1) - margin
+            start_line = (line_per_student * i)
+            end_line = line_per_student * (i + 1) - margin
 
             # 각 학생의 정보
-            header = timetable_data.iloc[startLine][0]
+            header = timetable_data.iloc[start_line][0]
             each_student = (int(header[:5]), header[5:])
 
             # 각 학생의 시간표
             timetable = Timetable()
-            xlsx_data = timetable_data[startLine + 1:endLine] \
+            xlsx_data = timetable_data[start_line + 1:end_line] \
                 .rename(columns={0: '월', 1: '화', 2: '수', 3: '목', 4: '금'}) \
                 .fillna('공강')
             xlsx_data.index = range(1, len(xlsx_data) + 1)
@@ -526,21 +538,22 @@ class StudentList:
                 for week, subject in xlsx_data.iloc[period - 1].items():
                     if subject != '공강':
                         matched = re.match('(?P<name>[\w\d\(\) ]+) (?P<nth>\d)반 \((?P<time>\d)시간\)', subject)
-                        subject_instance = Class(
+                        class_instance = Class(
                             name=transform(matched.group('name')).replace('(2)', ''),
                             # '기업가정신 및 기술창업교육(2) 1반 (2시간)' 같은 (2) 가 이름에 들어가는 예외가;
                             time=int(matched.group('time')),
                             nth=int(matched.group('nth')),
                         )
+                        subject_instance = Subject(class_instance)
 
                         teacher_classroom = classroom_data[
-                            classroom_data['과목'] == subject_instance.name.replace(' ', '')].dropna(axis=1)
+                            classroom_data['과목'] == class_instance.name.replace(' ', '')].dropna(axis=1)
 
                         # [학년, 과목] 컬럼 제거
                         teacher_classroom = teacher_classroom.iloc[:, 2:]
 
                         if teacher_classroom.empty:
-                            print(subject_instance)
+                            print(class_instance)
 
                         teachers = {}
                         for i in range(0, len(teacher_classroom.columns) - 1, 2):
@@ -549,9 +562,11 @@ class StudentList:
                                                classroom=teacher_classroom.iloc[:, i + 1].item())
                             teachers[instance.name] = instance
 
+                        class_instance.teachers = tuple(teachers.values())
+
                         teacher = None
                         teacher_data['교과'] = teacher_data['교과'].apply(transform)
-                        is_many_teacher = teacher_data[teacher_data['교과'] == subject_instance.name.replace(' ', '')]
+                        is_many_teacher = teacher_data[teacher_data['교과'] == class_instance.name.replace(' ', '')]
 
                         if is_many_teacher.empty:
                             teacher = next(iter(teachers.values()))
@@ -585,7 +600,7 @@ class StudentList:
                                         periods = list(map(int, matched.group('periods').split(',')))
                                         nth = int(matched.group('nth'))
 
-                                        if period in periods and subject_instance.nth == nth:
+                                        if period in periods and class_instance.nth == nth:
                                             teacher = teachers[teacher_data['교사명'].iloc[row]]
                                             break
 
@@ -593,10 +608,10 @@ class StudentList:
                                     break
 
                         if teacher is None:
-                            raise ValueError(subject_instance)
+                            raise ValueError(class_instance)
 
                         subject_instance.teacher = teacher
-                        subjects.add(subject_instance)
+                        subjects.add(class_instance)
                         timetable[week, period] = subject_instance
 
             # 저장

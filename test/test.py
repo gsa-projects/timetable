@@ -47,7 +47,7 @@ def overlap(sheet):
 
             overlap = student1.classes & student2.classes
 
-            if sum(overlap.to_time()) >= 30:
+            if sum(overlap.to_time()) >= 20:
                 overlaps[sum(overlap.to_time())].add(frozenset([student1, student2]))
 
     r = 1
