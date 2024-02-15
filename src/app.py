@@ -222,10 +222,10 @@ class App(ttk.Frame):
                     continue
 
                 # class block 생성
-                subject_name = start[1].name.replace(' ', '')
+                subject_name = start[1].super.name.replace(' ', '')
                 label_txt = split(subject_name, 5)
                 class_block = ClassBlock(new, width=self.default_width, height=self.default_height * duration,
-                                         text=label_txt, bg=start[1].type.color,
+                                         text=label_txt, bg=start[1].super.type.color,
                                          label_txt=label_txt, subject=start[1])
                 class_block.place(x=self.period_width + week.value * self.default_width,
                                   y=self.week_height + (start[0] - 1) * self.default_height)
@@ -236,7 +236,7 @@ class App(ttk.Frame):
                     got: Class = source.memo['subject']
 
                     source.configure(
-                        text=f'{got.teacher.name}T\n{got.teacher.classroom}\n{got.nth}분반')
+                        text=f'{got.teacher.name}T\n{got.teacher.classroom}\n{got.super.nth}분반')
                 class_block.btn.bind('<ButtonPress>', on_class_block_press)
 
                 # class block을 놓으면 다시 강의 이름을 보여줌

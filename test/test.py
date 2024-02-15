@@ -9,7 +9,7 @@ students = StudentList.load(
     '../data/2학년 학생별 시간표.xlsx',
     '../data/과목별 다교사수업.xlsx')
 
-records: defaultdict[Class, defaultdict[str, StudentList]]\
+records: defaultdict[Subject, defaultdict[str, StudentList]] \
     = defaultdict(lambda: defaultdict(StudentList))
 
 for student in students:
@@ -37,7 +37,7 @@ def classes(sheet):
                 sheet.cell(row=row + i + 1, column=nth, value=student.name)
                 max_row = max(max_row, row + i + 1)
 
-def overlap(sheet):
+def overlap_each_other(sheet):
     overlaps = defaultdict(set)
 
     for student1 in students:
@@ -61,9 +61,31 @@ def overlap(sheet):
             sheet.column_dimensions[get_column_letter(i + 2)].width = 15
         r += 1
 
-classes(workbook.create_sheet('분반'))
-overlap(workbook.create_sheet('중복'))
-del workbook['Sheet']
+def overlap_each(sheet):
+    for i, student in enumerate(students, start=1):
+        ranking = []
 
+        for other in students:
+            if student == other:
+                continue
+
+            overlap = student.classes & other.classes
+            ranking.append((other, sum(overlap.to_time())))
+
+        ranking.sort(key=lambda x: x[1], reverse=True)
+        ranking = ranking[:5]
+
+        sheet.cell(row=i, column=1, value=student.name)
+        sheet.cell(row=i, column=1).font = Font(bold=True)
+
+        for j, (other, time) in enumerate(ranking):
+            sheet.cell(row=i, column=j + 2, value=f"{other.name} ({time}시수)")
+            sheet.column_dimensions[get_column_letter(j + 2)].width = 15
+
+classes(workbook.create_sheet('분반'))
+overlap_each_other(workbook.create_sheet('서로 중복'))
+overlap_each(workbook.create_sheet('개별 중복'))
+
+del workbook['Sheet']
 workbook.save('../data/시간표 분석.xlsx')
 print('시간표 분석이 완료되었습니다.')
